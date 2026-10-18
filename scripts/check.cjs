@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const {execFileSync} = require('node:child_process');
-for(const path of ['api/config.js','api/students.js','api/learning.js','api/_lib/supabase.cjs','assets/app.js','student.js','scripts/measurement.cjs','scripts/build-seed.cjs'])execFileSync(process.execPath,['--check',path]);
+for(const path of ['api/config.js','api/students.js','api/learning.js','api/_lib/supabase.cjs','assets/app.js','student.js','scripts/measurement.cjs','scripts/build-seed.cjs','scripts/staging-check.cjs'])execFileSync(process.execPath,['--check',path]);
 const html=fs.readFileSync('index.html','utf8');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 if(new Set(ids).size!==ids.length)throw Error('Duplicate HTML ids');

@@ -5,7 +5,8 @@
     "test": "node --test --test-isolation=none tests/*.test.cjs",
     "check": "node scripts/check.cjs",
     "seed:check": "node scripts/build-seed.cjs --check",
-    "test:ui": "node tests/ui-smoke.cjs"
+    "test:ui": "node tests/ui-smoke.cjs",
+    "test:staging": "node scripts/staging-check.cjs"
   },
   "engines": {
     "node": ">=22"
