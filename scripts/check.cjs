@@ -1,0 +1,13 @@
+const fs = require('node:fs');
+const {execFileSync} = require('node:child_process');
+for(const path of ['api/config.js','api/students.js','api/learning.js','api/_lib/supabase.cjs','assets/app.js','student.js','scripts/measurement.cjs','scripts/build-seed.cjs'])execFileSync(process.execPath,['--check',path]);
+const html=fs.readFileSync('index.html','utf8');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+if(new Set(ids).size!==ids.length)throw Error('Duplicate HTML ids');
+if(/\son\w+\s*=|<script(?![^>]*src=)[^>]*>\s*\S/i.test(html))throw Error('Inline executable content violates CSP');
+const publicSources=['index.html','student.js','assets/app.js','assets/style.css'].map(p=>fs.readFileSync(p,'utf8')).join('\n');
+if(/SUPABASE_SERVICE_ROLE_KEY|answer_keys|correct_answer/.test(publicSources))throw Error('Private fields referenced in public assets');
+for(const ref of html.matchAll(/(?:src|href)="(\/[^"?#]+)"/g))if(ref[1]!=='/'&&!fs.existsSync('.'+ref[1]))throw Error('Missing public asset '+ref[1]);
+JSON.parse(fs.readFileSync('vercel.json'));
+require('./build-seed.cjs');
+console.log('JavaScript syntax, asset references, HTML ids and public-source checks passed.');

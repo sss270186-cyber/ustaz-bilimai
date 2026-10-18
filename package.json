@@ -1,0 +1,17 @@
+{
+  "name": "ustaz-bilimai",
+  "private": true,
+  "scripts": {
+    "test": "node --test --test-isolation=none tests/*.test.cjs",
+    "check": "node scripts/check.cjs",
+    "seed:check": "node scripts/build-seed.cjs --check",
+    "test:ui": "node tests/ui-smoke.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "playwright": "1.62.1"
+  }
+}
