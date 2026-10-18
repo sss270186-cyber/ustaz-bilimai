@@ -1,0 +1,23 @@
+{
+  "name": "ustaz-bilimai",
+  "private": true,
+  "scripts": {
+    "test": "node --test --test-isolation=none tests/*.test.cjs",
+    "check": "node scripts/check.cjs",
+    "seed:check": "node scripts/build-seed.cjs --check && node scripts/build-curriculum.cjs --check && node scripts/build-quality.cjs --check",
+    "test:ui": "node tests/ui-smoke.cjs",
+    "test:staging": "node scripts/staging-check.cjs",
+    "test:programs": "node scripts/verify-programs.cjs",
+    "dev:local": "node scripts/local-server.cjs",
+    "test:css": "node tests/css-smoke.cjs",
+    "test:excel": "node tests/excel-quality.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "hyperformula": "3.1.0",
+    "playwright": "1.62.1"
+  }
+}
