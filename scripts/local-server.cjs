@@ -25,7 +25,7 @@ async function startLocal({port=0,log=()=>{}}={}) {
  create table public.profiles(id uuid primary key references auth.users(id),username text unique,full_name text,role text,class_name text,created_at timestamptz default now());`);
  const teacher=await addAccount('teacher','Жергілікті сынақ мұғалімі','teacher',PASSWORD);
  await addAccount('student01','Жергілікті сынақ оқушысы','student',PASSWORD);
- for(const file of ['202610180001_learning.sql','202610180002_measurement_seed.sql','202610180003_answer_formats.sql','202610180004_full_curriculum.sql'])await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'));
+ for(const file of ['202610180001_learning.sql','202610180002_measurement_seed.sql','202610180003_answer_formats.sql','202610180004_full_curriculum.sql','202610180005_quality_review.sql'])await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'));
  const asUser=async(account,fn)=>{
   await db.exec('set role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[account.id]);try{return await fn();}finally{await db.exec('reset role');}
  };
@@ -80,7 +80,7 @@ async function startLocal({port=0,log=()=>{}}={}) {
    return send({error:'Not found'},404);
   }
   if(req.method!=='GET')return send({error:'Not found'},404);
-  const files={'/':'index.html','/index.html':'index.html','/assets/style.css':'assets/style.css','/assets/lessons.js':'assets/lessons.js','/assets/app.js':'assets/app.js','/student.js':'student.js'};
+  const files={'/':'index.html','/index.html':'index.html','/assets/style.css':'assets/style.css','/assets/lessons.js':'assets/lessons.js','/assets/theory-review.js':'assets/theory-review.js','/assets/app.js':'assets/app.js','/student.js':'student.js'};
   if(!files[pathname])return send({error:'Not found'},404);
   let data=fs.readFileSync(path.join(root,files[pathname]),'utf8');
   if(files[pathname]==='index.html')data=data.replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js','/__local/auth.js').replace('<header class="topbar">','<div class="local-banner">ЖЕРГІЛІКТІ СЫНАҚ · Оқшауланған PostgreSQL, сынақ аккаунттары. Нақты Supabase емес. Қайта іске қосқанда деректер тазарады.</div><header class="topbar">');

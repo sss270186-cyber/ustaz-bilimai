@@ -12,7 +12,7 @@ test('all public theory lessons have goals, five teaching sections, self-check a
 });
 test('author answers match independent mathematical, bitwise and truth-table references',()=>{
  for(const [topic,values]of Object.entries(reference)){
- const a=tasks.filter(t=>t.topic_id===topic).sort((x,y)=>(x.level+x.position.toString().padStart(2,'0')).localeCompare(y.level+y.position.toString().padStart(2,'0')));
+ const a=require('../scripts/curriculum-base.cjs').tasks.filter(t=>t.topic_id===topic).sort((x,y)=>(x.level+x.position.toString().padStart(2,'0')).localeCompare(y.level+y.position.toString().padStart(2,'0')));
  assert.equal(values.length,a.length,topic);
  a.forEach((t,i)=>{if(t.answer_format==='number'){const expected=Number(values[i]);assert.ok(Math.abs(Number(t.answer)-expected)<=Math.max(1e-10,Math.abs(expected)*1e-12),`${t.id}: ${t.answer} != ${expected}`);}else assert.equal(t.answer.toLowerCase(),String(values[i]).toLowerCase(),t.id);});
  }

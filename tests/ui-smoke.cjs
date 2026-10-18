@@ -13,18 +13,19 @@ const {startLocal,PASSWORD}=require('../scripts/local-server.cjs');const {topics
   async function login(role,name,password=PASSWORD){await page.locator('#openLogin').click();await page.locator('#loginRole').selectOption(role);await page.locator('#loginName').fill(name);await page.locator('#loginPassword').fill(password);await page.locator('#loginSubmit').click();await page.waitForFunction(r=>state.workspace?.role===r,role);}
   async function logout(){await page.locator('#logout').click();await page.waitForFunction(()=>state.user===null);await page.locator('#openLogin').waitFor();}
   await login('student','student01');await page.locator('[data-view=practice]').click();assert.equal(await page.locator('.task').count(),2);
-  const submit=async(id,answer)=>{await page.locator('#answer-'+id).fill(answer);await page.locator('#answer-'+id).locator('xpath=ancestor::form').getByRole('button',{name:'Тексеру',exact:true}).click();await page.locator('#feedback-'+id+' strong').waitFor();};
+  const submit=async(id,answer)=>{assert.equal(await page.locator('#feedback-'+id).textContent(),'');await page.locator('#answer-'+id).fill(answer);await page.locator('#answer-'+id).locator('xpath=ancestor::form').getByRole('button',{name:'Тексеру',exact:true}).click();await page.locator('#feedback-'+id+' strong').waitFor();};
   await submit('measure-b01','1 792');assert.match(await page.locator('#feedback-measure-b01').textContent(),/Дұрыс!.*Шешуі.*Түсіндірме/s);
-  await submit('measure-b02','0');assert.match(await page.locator('#feedback-measure-b02').textContent(),/Дұрыс жауап: 3084/);
+  await submit('measure-b02','0');assert.match(await page.locator('#feedback-measure-b02').textContent(),/Дұрыс жауап: 3084/);assert.match(await page.locator('#feedback-measure-b02').textContent(),/Қатені талдау/);
   await page.locator('[data-view=results]').click();assert.deepEqual(await page.locator('.stat b').allTextContents(),['2','1','50%']);
   for(const topic of topics){
    await page.locator(`[data-topic="${topic.id}"]`).click();assert.equal(await page.locator('#theory').isVisible(),true);assert.ok(await page.locator('#theory .panel').count()>=5,topic.id);
    await page.locator('[data-view=practice]').click();await page.locator('[data-level=B]').click();assert.equal(await page.locator('.task').count(),2,topic.id+' B');
    await page.locator('[data-level=C]').click();assert.equal(await page.locator('.task').count(),10,topic.id+' C');assert.equal(await page.locator('.feedback').count(),0);
   }
-  await page.locator('[data-topic=python]').click();await page.locator('[data-view=practice]').click();assert.ok(await page.locator('.code-block').count());await submit('python-c02','1, 8, 3');assert.match(await page.locator('#feedback-python-c02').textContent(),/Дұрыс!/);
+  await page.locator('[data-topic=python]').click();await page.locator('[data-view=practice]').click();assert.ok(await page.locator('.code-block').count());await submit('python-c02','15, 17, 15');assert.match(await page.locator('#feedback-python-c02').textContent(),/Дұрыс!/);
   await page.locator('[data-topic=ip]').click();await page.locator('[data-view=practice]').click();await submit('ip-c02','10.24.39.255');assert.match(await page.locator('#feedback-ip-c02').textContent(),/Дұрыс!/);
-  await page.reload();await page.waitForFunction(()=>state.workspace?.role==='student');await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'4');
+  await submit('ip-c04','10.42.9.99');assert.match(await page.locator('#feedback-ip-c04').textContent(),/Қатені талдау.*broadcast/s);
+  await page.reload();await page.waitForFunction(()=>state.workspace?.role==='student');await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'5');
   await page.locator('[data-view=lesson]').click();await page.locator('#lessonTopic').fill('<img src=x onerror=alert(1)>');await page.locator('#lessonForm button').click();assert.equal(await page.locator('#lessonText img').count(),0);
   await logout();assert.equal(await page.locator('.feedback').count(),0);
   await login('teacher','teacher@local.test');await page.locator('#studentsTab').click();await page.locator('#studentsTable').getByText('student01').waitFor();assert.equal(await page.locator('.admin-task').count(),12);

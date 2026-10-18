@@ -24,7 +24,16 @@ print(f'Executed {count} authored Python/SQL tasks successfully.')
 # IPv4/IPv6 answers are checked with Python stdlib independently of JS fixtures.
 answers={t['id']:t['answer'] for t in items if t['topic_id']=='ip'}
 assert answers['ip-b01']==str(ipaddress.ip_network('192.168.14.77/24',strict=False).network_address)
-assert answers['ip-c01']==str(ipaddress.ip_network('172.19.83.201/20',strict=False).network_address)
+parent=ipaddress.ip_network('172.19.80.0/20')
+second=ipaddress.ip_address(int(parent.network_address)+1024)
+assert answers['ip-c01']==str(ipaddress.ip_network(str(second)+'/23'))
+addr=ipaddress.ip_address('10.42.8.0')
+import math
+for h in [134,62,28,2]:
+    size=2**math.ceil(math.log2(h+2))
+    network=ipaddress.ip_network(str(addr)+'/'+str(32-int(math.log2(size))))
+    addr+=size
+assert answers['ip-c04']==str(network.broadcast_address-1)
 assert answers['ip-c02']==str(ipaddress.ip_network('10.24.37.18/22',strict=False).broadcast_address)
 assert answers['ip-c03']==str(ipaddress.ip_network('192.168.5.150/26',strict=False).broadcast_address-1)
 assert answers['ip-c07']==str(next(ipaddress.collapse_addresses([ipaddress.ip_network(f'192.168.{i}.0/24') for i in range(32,40)])))

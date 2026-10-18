@@ -1,4 +1,4 @@
-const fs=require('node:fs');const {topics,tasks}=require('./curriculum.cjs');
+const fs=require('node:fs');const {topics,tasks}=require('./curriculum-base.cjs');
 const q=s=>"'"+String(s).replaceAll("'","''")+"'";
 let sql='-- Generated private curriculum seed. Never include this file in static output.\nbegin;\n';
 for(const t of topics)sql+=`update public.unt_topics set title=${q(t.title)},ready=true where id=${q(t.id)};\n`;

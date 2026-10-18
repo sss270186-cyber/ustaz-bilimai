@@ -89,6 +89,7 @@ function renderTasks() {
         if(epoch!==state.epoch)return;
         feedback.className=`feedback${result.correct?'':' incorrect'}`;
         feedback.append(node('p',result.correct?'Дұрыс! Нәтиже сақталды.':'Жауап сәйкес келмеді. Нәтиже сақталды.'),node('strong',`Дұрыс жауап: ${result.answer} ${result.unit}`));
+        if(!result.correct&&result.feedback)feedback.append(node('h4','Қатені талдау'),node('p',result.feedback));
         feedback.append(node('h4','Шешуі'));
         const steps=node('ol');result.steps.forEach(s=>steps.append(node('li',s)));feedback.append(steps);
         if(result.explanation)feedback.append(node('h4','Түсіндірме'),node('p',result.explanation));
@@ -116,7 +117,7 @@ function renderResults() {
   const attempted=own.reduce((a,s)=>a+s.attempted,0), correct=own.reduce((a,s)=>a+s.first_correct,0);
   const stats=node('div',undefined,'stats');
   [[attempted,'Орындалған есеп'],[correct,'Алғашқыда дұрыс'],[attempted?Math.round(correct/attempted*100)+'%':'—','Алғашқы әрекет дәлдігі']].forEach(([value,label])=>{const n=node('div',undefined,'stat');n.append(node('b',String(value)),node('span',label));stats.append(n);});summaryTarget.append(stats);
-  summaryTarget.append(node('p','Алғашқы әрекет әр есепке бір рет саналады. Қайталау кезінде шешім бұрын көрілген болуы мүмкін. Мұғалімнің өзінің сынақ әрекеттері оқушы есебіне қосылмайды.','muted'));
+  summaryTarget.append(node('p','Алғашқы әрекет әр есептің әр нұсқасына бір рет саналады. Қайталау кезінде шешім бұрын көрілген болуы мүмкін. Мұғалімнің өзінің сынақ әрекеттері оқушы есебіне қосылмайды.','muted'));
   if(teacher && ws.roster.length===0)target.append(node('p','Топта оқушы жоқ. «Оқушылар» бөлімінен бұрын тіркелген оқушыларды топқа қосыңыз.','panel'));
   if(own.length){
     const panel=node('article',undefined,'panel');panel.append(node('h3',teacher?'Қате кеткен тақырыптар':'Тақырып пен деңгей бойынша'));
@@ -128,7 +129,7 @@ function renderResults() {
   const attempts=ws.attempts.filter(a=>!teacher||a.student_id!==state.user.id);
   if(attempts.length){const panel=node('article',undefined,'panel');panel.append(node('h3','Соңғы әрекеттер'),node('p','Соңғы 200 әрекетке дейін көрсетіледі. Жоғарыдағы статистика бүкіл тарихтың алғашқы әрекеттерінен есептеледі. Уақыт: Қызылорда.','muted'));
     panel.append(renderTable(teacher?['Оқушы','Есеп','Жауап','Нәтиже','Уақыты']:['Есеп','Жауап','Нәтиже','Уақыты'],attempts.map(a=>{
-      const values=[a.task_id,a.submitted_answer,a.correct?'Дұрыс':'Қате',formatTime(a.created_at)];return teacher?[roster.get(a.student_id)?.full_name||'Оқушы',...values]:values;
+      const values=[a.task_id+(a.task_revision?' · v'+a.task_revision:''),a.submitted_answer,a.correct?'Дұрыс':'Қате',formatTime(a.created_at)];return teacher?[roster.get(a.student_id)?.full_name||'Оқушы',...values]:values;
     })));target.append(panel);
   }else empty(target,'Әзірге орындалған тапсырма жоқ.');
   renderLegacy();
@@ -167,13 +168,17 @@ function makeLesson(event){
   [['Мақсат','Тақырыптың негізгі ұғымдарын түсіндіру және практикалық есептер шығару.'],['Сабақ барысы (45 минут)','Ұйымдастыру — 3 мин; түсіндіру — 12 мин; тәжірибе — 20 мин; бағалау — 7 мин; рефлексия — 3 мин.'],['Бағалау','Дұрыс жауап, есептеу жолы және түсіндіру.']].forEach(([title,text])=>{const p=node('p');p.append(node('b',title+': '),document.createTextNode(text));target.append(p);});
 }
 const measurementTheory=[...el('theory').childNodes].map(n=>n.cloneNode(true));
+function appendTheoryReview(id,target){
+ const r=window.THEORY_REVIEW?.[id];if(!r)return;const p=node('article',undefined,'panel');p.append(node('span','КҮРДЕЛІ ЕСЕПКЕ ДАЙЫНДЫҚ','eyebrow'),node('h3',r.scope),node('p',r.limits),node('p',r.example,'worked'),node('p',r.method));target.append(p);
+}
 function renderTheory(id){
  const target=el('theory');
- if(id==='measurement'){target.replaceChildren(...measurementTheory.map(n=>n.cloneNode(true)));target.querySelector('#startPractice')?.addEventListener('click',()=>{showView('practice');el('content').focus();});return;}
+ if(id==='measurement'){target.replaceChildren(...measurementTheory.map(n=>n.cloneNode(true)));appendTheoryReview(id,target);target.querySelector('#startPractice')?.addEventListener('click',()=>{showView('practice');el('content').focus();});return;}
  const lesson=window.LESSONS?.[id];if(!lesson){empty(target,'Теория файлы жүктелмеді. Бетті жаңартыңыз.');return;}
  const head=node('div',undefined,'section-heading');head.append(node('h2',topicNames[topicIds.indexOf(id)]));target.replaceChildren(head);
  const goals=node('article',undefined,'panel');goals.append(node('span','САБАҚ МАҚСАТТАРЫ','eyebrow'));const ul=node('ul');lesson.goals.forEach(g=>ul.append(node('li',g)));goals.append(ul);target.append(goals);
  lesson.sections.forEach((section,i)=>{const p=node('article',undefined,'panel');p.append(node('span',String(i+1).padStart(2,'0')+' / ТЕОРИЯ','chapter'),node('h3',section.title));section.paragraphs.forEach(text=>p.append(node('p',text)));if(section.formulas.length)p.append(node('pre',section.formulas.join('\n'),'formula'));if(section.example)p.append(node('p',section.example,'worked'));target.append(p);});
+ appendTheoryReview(id,target);
  const check=node('article',undefined,'panel');check.append(node('h3','Өзіңді тексер'));const list=node('ul');lesson.checks.forEach(text=>list.append(node('li',text)));check.append(list);
  const button=node('button','Тапсырмаларға өту →','button');button.addEventListener('click',()=>{showView('practice');el('content').focus();});check.append(button,node('p','Авторлық ҰБТ дайындық материалы. Тапсырма жауаптары жеке тексеруден кейін ашылады.','muted'));
  const source=node('a',lesson.source[0]);source.href=lesson.source[1];source.target='_blank';source.rel='noopener noreferrer';check.append(source);target.append(check);

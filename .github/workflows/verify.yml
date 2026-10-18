@@ -19,6 +19,7 @@ jobs:
       - run: npm run seed:check
       - run: npm test
       - run: npm run test:programs
+      - run: npm run test:excel
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - run: npm run test:css

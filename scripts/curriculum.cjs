@@ -1,17 +1,5 @@
-const measurement=require('./measurement.cjs');
-const extra=[...require('./curriculum/foundations.cjs'),...require('./curriculum/networking.cjs'),...require('./curriculum/programming.cjs'),...require('./curriculum/data-ai.cjs')];
-const explanations=[
- 'Үлкен бірліктен кішіге өткенде көбейтеміз; МиБ пен КиБ қатынасы1024.',
- 'Қосындыға дейін әр бөлікті бірдей байт бірлігіне келтіреміз.',
- 'Кіші бөліктегі жарты КиБ-ті жоғалтпау үшін аралық мәнді дөңгелектемейміз.',
- 'Символдың16 бит салмағы кодтау шартымен берілген, барлық мәтінге әмбебап емес.',
- 'Бос қор сақталатын жалпы көлемнен алынады, тек толық файлдар саналады.',
- 'Қысу коэффициенті қалған үлесті береді; тақырыпша әр файлға бөлек қосылады.',
- 'Әр файл жеке кластермен сақталады, сондықтан дөңгелектеу де жеке жасалады.',
- 'Соңғы дерек бөлігі толтырылмайды, бірақ оның да тақырыпшасы бар.',
- 'Толық база мен барлық инкременттер екі данаға бірдей көбейтіледі.',
- 'Қысылмаған PCM моделі жиілік, разряд, арна саны және уақытты көбейтеді.',
- 'Туралау әр жолға қолданылады; пиксельдердің жалпы санына бір рет дөңгелектеу қате.',
- 'Ондық GB пен екілік ГиБ-ты байтқа айналдырғаннан кейін ғана бөлеміз.'
-];
-module.exports={topics:measurement.topics.map(t=>({...t,ready:true})),tasks:[...measurement.tasks.map((t,i)=>({...t,code:'',answer_format:'number',explanation:explanations[i]})),...extra]};
+const base=require('./curriculum-base.cjs');const patches=require('./curriculum/reviewed.cjs');
+module.exports={topics:base.topics,tasks:base.tasks.map(original=>{
+ const patch=patches[original.id]||{};const t={...original,...patch};
+ return {...t,error_feedback:'Жауап берілген модельге сәйкес келмеді. Тексеру бағыты: '+t.explanation,mistakes:patch.mistakes||{}};
+})};

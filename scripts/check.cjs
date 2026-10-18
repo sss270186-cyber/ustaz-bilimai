@@ -9,5 +9,5 @@ if(/SUPABASE_SERVICE_ROLE_KEY|answer_keys|correct_answer/.test(pub))throw Error(
 for(const ref of html.matchAll(/(?:src|href)="(\/[^"?#]+)"/g))if(ref[1]!=='/'&&!fs.existsSync('.'+ref[1]))throw Error('Missing public asset '+ref[1]);
 const config=JSON.parse(fs.readFileSync('vercel.json'));
 if(config.builds.some(b=>b.use==='@vercel/static'&&!['index.html','student.js','assets/**'].includes(b.src)))throw Error('Unsafe static source glob');
-for(const script of ['scripts/build-seed.cjs','scripts/build-curriculum.cjs'])execFileSync(process.execPath,[script,'--check']);
-console.log('JavaScript syntax, assets, HTML ids, public-source boundary, static build allowlist and both SQL seeds passed.');
+for(const script of ['scripts/build-seed.cjs','scripts/build-curriculum.cjs','scripts/build-quality.cjs'])execFileSync(process.execPath,[script,'--check']);
+console.log('JavaScript syntax, assets, HTML ids, public-source boundary, static build allowlist and all SQL seeds passed.');
