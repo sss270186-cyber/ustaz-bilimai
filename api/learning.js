@@ -10,9 +10,9 @@ module.exports = async function handler(req, res) {
     const body = req.body;
     if (!body || typeof body !== 'object' || Array.isArray(body)) return res.status(400).json({error:'Сұрау форматы қате'});
     if (body.action === 'grade') {
-      if (typeof body.task_id !== 'string' || !/^measure-[bc]\d{2}$/.test(body.task_id) ||
-          typeof body.answer !== 'string' || body.answer.length > 64 || !body.answer.trim()) {
-        return res.status(400).json({error:'Тапсырма мен сандық жауапты тексеріңіз'});
+      if (typeof body.task_id !== 'string' || !/^[a-z][a-z0-9-]{0,47}-[bc]\d{2}$/.test(body.task_id) ||
+          typeof body.answer !== 'string' || body.answer.length > 256 || !body.answer.trim()) {
+        return res.status(400).json({error:'Тапсырма мен жауап пішімін тексеріңіз'});
       }
       const result = await rpc(context, 'unt_submit_answer', {p_task_id:body.task_id,p_answer:body.answer});
       return res.status(200).json(result);

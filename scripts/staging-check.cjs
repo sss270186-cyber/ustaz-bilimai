@@ -37,7 +37,7 @@ async function runStaging(env=process.env,fetchImpl=fetch,report=console.log) {
  report('PASS: private source paths and anonymous API access are blocked');
  try {
   teacher=await login(c.email,c.password);const initial=await workspace(teacher);assert(initial.role==='teacher','Staging account is not a registered learning teacher');
-  assert(initial.topics.length===19,'Expected 19 topics');assert(initial.tasks.length===12&&initial.tasks.every(t=>t.active),'Expected 12 active staging tasks');
+  assert(initial.topics.length===19,'Expected 19 topics');assert(initial.tasks.length===228&&initial.tasks.every(t=>t.active),'Expected 228 active staging tasks');
   const prefix='qa_'+randomBytes(6).toString('hex'),students=[];
   for(const suffix of ['a','b']){
    const username=prefix+suffix,password=randomBytes(24).toString('base64url');
@@ -47,7 +47,7 @@ async function runStaging(env=process.env,fetchImpl=fetch,report=console.log) {
   }
   report('PASS: teacher registration and real student Auth login');
   const [a,b]=students;let ws=await workspace(a.session);assert(ws.role==='student','Expected student role');
-  assert(ws.tasks.filter(t=>t.level==='B').length===2&&ws.tasks.filter(t=>t.level==='C').length===10,'Task level counts differ');
+  assert(ws.tasks.filter(t=>t.topic_id==='measurement'&&t.level==='B').length===2&&ws.tasks.filter(t=>t.topic_id==='measurement'&&t.level==='C').length===10,'Task level counts differ');
   assert(ws.tasks.every(t=>!('answer'in t)&&!('steps'in t)),'Workspace leaked answer keys');
   const grade=async(session,answer,task='measure-b01')=>site('/api/learning',{method:'POST',token:session.access_token,body:{action:'grade',task_id:task,answer}});
   let result=await grade(a.session,'0');assert(result.ok&&result.data.correct===false&&result.data.steps.length>0,'Wrong-answer grading failed');

@@ -1,6 +1,6 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const {topics,tasks}=require('../scripts/measurement.cjs');
-test('19 ordered topics; only the first-stage lesson is ready',()=>{
+test('original first-stage seed remains backward compatible with its 19-topic roster',()=>{
  assert.equal(topics.length,19);assert.deepEqual(topics.map(t=>t.position),Array.from({length:19},(_,i)=>i));
  assert.deepEqual(topics.filter(t=>t.ready).map(t=>t.id),['measurement']);
 });

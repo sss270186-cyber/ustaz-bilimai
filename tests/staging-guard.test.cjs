@@ -37,7 +37,7 @@ test('staging acceptance restores visibility and revokes test sessions when a ch
   if(path==='/api/learning'&&options.method==='GET'){
    if(!actor)return response({},401);
    const rows=attempts.filter(a=>actor==='teacher'||a.student_id===actor);
-   return response({role:actor==='teacher'?'teacher':'student',topics:Array(19).fill({}),tasks:Array.from({length:12},(_,i)=>({id:i===0?'measure-b01':'task-'+i,level:i<2?'B':'C',active})),
+   return response({role:actor==='teacher'?'teacher':'student',topics:Array(19).fill({}),tasks:Array.from({length:228},(_,i)=>({id:i===0?'measure-b01':'task-'+i,topic_id:i<12?'measurement':'hardware',level:i%12<2?'B':'C',active})),
     roster:[...accounts.values()],attempts:rows,summary:rows.length?[{attempted:1,first_wrong:1,first_correct:0}]:[]});
   }
   if(path==='/api/learning'&&body.action==='grade'){

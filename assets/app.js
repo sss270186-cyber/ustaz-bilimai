@@ -8,12 +8,13 @@ function notice(text,error=false) { el('workspaceStatus').textContent=text;el('w
 function empty(target,text) {target.replaceChildren(node('p',text,'panel empty'));}
 function selectedTopic(id) {
   state.topic=id;
-  const index=topicIds.indexOf(id), ready=id==='measurement';
+  const index=topicIds.indexOf(id), ready=id==='measurement'||Boolean(window.LESSONS?.[id]);
   el('topicTitle').textContent=topicNames[index];el('crumb').textContent=topicNames[index];
   el('topicIndex').textContent=`${String(index).padStart(2,'0')} / 19 · ТАҚЫРЫП`;
-  el('topicDescription').textContent=ready?'Биттен гигабайтқа дейін. Өлшем бірліктерін түсініп, көпқадамды есептерді сенімді шығар.':'Бұл бөлімнің теориясы мен тапсырмалары келесі кезеңдерде қосылады.';
+  el('topicDescription').textContent=id==='measurement'?'Биттен гигабайтқа дейін. Өлшем бірліктерін түсініп, көпқадамды есептерді сенімді шығар.':window.LESSONS?.[id]?.summary||'Тақырып жүктелмеді.';
   document.querySelector('.hero-tags').hidden=!ready;
-  document.querySelector('.bit-visual').hidden=!ready;
+  document.querySelector('.bit-visual').hidden=id!=='measurement';
+  renderTheory(id);
   document.querySelectorAll('.topic-button').forEach(b=>{const current=b.dataset.topic===id;b.classList.toggle('selected',current);current?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');});
   el('topicList').classList.remove('open');el('topicToggle').setAttribute('aria-expanded','false');
   showView('theory');
@@ -22,14 +23,14 @@ function renderTopics() {
   el('topicList').replaceChildren(...topicNames.map((title,index)=>{
     const b=node('button',undefined,'topic-button');b.type='button';b.dataset.topic=topicIds[index];
     b.append(node('span',String(index).padStart(2,'0'),'number'),node('span',title,'topic-name'));
-    if(index!==3)b.append(node('span','Дайындалуда','soon'));
+    b.append(node('span','2B · 10C','soon'));
     b.addEventListener('click',()=>selectedTopic(topicIds[index]));return b;
   }));
 }
 function showView(view) {
   if(view==='students' && state.profile?.role!=='teacher')return;
   state.view=view;
-  const pending=state.topic!=='measurement'&&['theory','practice'].includes(view);
+  const pending=state.topic!=='measurement'&&!window.LESSONS?.[state.topic]&&['theory','practice'].includes(view);
   el('pending').hidden=!pending;
   document.querySelectorAll('.view').forEach(n=>n.hidden=pending||n.id!==view);
   document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.dataset.view===view?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');});
@@ -70,11 +71,12 @@ function renderTasks() {
     const card=node('article',undefined,'panel task');
     const top=node('div',undefined,'task-top');top.append(node('span',`${t.level} ДЕҢГЕЙІ · ${String(t.position).padStart(2,'0')}`,'badge'),node('span',t.id,'task-id'));
     card.append(top,node('h3',t.title),node('p',t.prompt,'task-prompt'));
+    if(t.code){const pre=node('pre',undefined,'code-block');pre.append(node('code',t.code));card.append(pre);}
     const info=node('div',undefined,'task-data');
     [['Берілгені',t.given_data],['Табу керек',t.find_value]].forEach(([label,value])=>{const n=node('div');n.append(node('strong',label),node('p',value));info.append(n);});
-    card.append(info,node('div',t.formulas.join('\n'),'task-formulas'));
-    const form=node('form',undefined,'answer-row'), label=node('label','Сандық жауап'), input=node('input');
-    input.id=`answer-${t.id}`;input.name='answer';input.type='text';input.inputMode='decimal';input.required=true;input.maxLength=64;input.autocomplete='off';label.htmlFor=input.id;label.append(input);
+    card.append(info,node('strong','Формула / ереже'),node('div',t.formulas.join('\n'),'task-formulas'));
+    const form=node('form',undefined,'answer-row'), label=node('label',t.answer_format==='number'?'Сандық жауап':'Жауап'), input=node('input');
+    input.id=`answer-${t.id}`;input.name='answer';input.type='text';input.inputMode=t.answer_format==='number'?'decimal':'text';input.required=true;input.maxLength=t.answer_format==='number'?64:256;input.autocomplete='off';label.htmlFor=input.id;label.append(input);
     const unit=node('span',t.unit,'answer-unit'), button=node('button','Тексеру','button');button.type='submit';
     const feedback=node('div');feedback.id=`feedback-${t.id}`;feedback.setAttribute('role','status');input.setAttribute('aria-describedby',feedback.id);
     form.append(label,unit,button);card.append(form,feedback);
@@ -87,7 +89,9 @@ function renderTasks() {
         if(epoch!==state.epoch)return;
         feedback.className=`feedback${result.correct?'':' incorrect'}`;
         feedback.append(node('p',result.correct?'Дұрыс! Нәтиже сақталды.':'Жауап сәйкес келмеді. Нәтиже сақталды.'),node('strong',`Дұрыс жауап: ${result.answer} ${result.unit}`));
+        feedback.append(node('h4','Шешуі'));
         const steps=node('ol');result.steps.forEach(s=>steps.append(node('li',s)));feedback.append(steps);
+        if(result.explanation)feedback.append(node('h4','Түсіндірме'),node('p',result.explanation));
         // Refresh the cached statistics without replacing this task and its explanation.
         try {const workspace=await api('/api/learning');if(epoch===state.epoch){state.workspace=workspace;renderResults();}}catch{notice('Жауап сақталды. Статистиканы жаңарту үшін «Жаңарту» батырмасын басыңыз.',true);}
       }catch(error){if(epoch===state.epoch){feedback.className='feedback incorrect';feedback.append(node('p',error.message));}}
@@ -140,7 +144,7 @@ function renderLegacy() {
 function renderTaskAdmin() {
   const target=el('taskAdmin');target.replaceChildren();
   if(state.profile?.role!=='teacher'||!state.workspace)return;
-  state.workspace.tasks.forEach(t=>{
+  state.workspace.tasks.filter(t=>t.topic_id===state.topic).forEach(t=>{
     const row=node('div',undefined,'admin-task'),button=node('button',t.active?'Жасыру':'Ашу','button secondary small');button.type='button';
     row.append(node('span',`${t.level}${t.position} · ${t.title}${t.active?'':' · жасырылған'}`),button);
     button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/learning',{method:'POST',body:JSON.stringify({action:'set_active',task_id:t.id,active:!t.active})});await refreshWorkspace();}catch(e){el('adminStatus').textContent=e.message;button.disabled=false;}});target.append(row);
@@ -162,11 +166,22 @@ function makeLesson(event){
   event.preventDefault();const target=el('lessonText');target.replaceChildren(node('h3',el('lessonTopic').value.trim()||'Информатика'));
   [['Мақсат','Тақырыптың негізгі ұғымдарын түсіндіру және практикалық есептер шығару.'],['Сабақ барысы (45 минут)','Ұйымдастыру — 3 мин; түсіндіру — 12 мин; тәжірибе — 20 мин; бағалау — 7 мин; рефлексия — 3 мин.'],['Бағалау','Дұрыс жауап, есептеу жолы және түсіндіру.']].forEach(([title,text])=>{const p=node('p');p.append(node('b',title+': '),document.createTextNode(text));target.append(p);});
 }
+const measurementTheory=[...el('theory').childNodes].map(n=>n.cloneNode(true));
+function renderTheory(id){
+ const target=el('theory');
+ if(id==='measurement'){target.replaceChildren(...measurementTheory.map(n=>n.cloneNode(true)));target.querySelector('#startPractice')?.addEventListener('click',()=>{showView('practice');el('content').focus();});return;}
+ const lesson=window.LESSONS?.[id];if(!lesson){empty(target,'Теория файлы жүктелмеді. Бетті жаңартыңыз.');return;}
+ const head=node('div',undefined,'section-heading');head.append(node('h2',topicNames[topicIds.indexOf(id)]));target.replaceChildren(head);
+ const goals=node('article',undefined,'panel');goals.append(node('span','САБАҚ МАҚСАТТАРЫ','eyebrow'));const ul=node('ul');lesson.goals.forEach(g=>ul.append(node('li',g)));goals.append(ul);target.append(goals);
+ lesson.sections.forEach((section,i)=>{const p=node('article',undefined,'panel');p.append(node('span',String(i+1).padStart(2,'0')+' / ТЕОРИЯ','chapter'),node('h3',section.title));section.paragraphs.forEach(text=>p.append(node('p',text)));if(section.formulas.length)p.append(node('pre',section.formulas.join('\n'),'formula'));if(section.example)p.append(node('p',section.example,'worked'));target.append(p);});
+ const check=node('article',undefined,'panel');check.append(node('h3','Өзіңді тексер'));const list=node('ul');lesson.checks.forEach(text=>list.append(node('li',text)));check.append(list);
+ const button=node('button','Тапсырмаларға өту →','button');button.addEventListener('click',()=>{showView('practice');el('content').focus();});check.append(button,node('p','Авторлық ҰБТ дайындық материалы. Тапсырма жауаптары жеке тексеруден кейін ашылады.','muted'));
+ const source=node('a',lesson.source[0]);source.href=lesson.source[1];source.target='_blank';source.rel='noopener noreferrer';check.append(source);target.append(check);
+}
 renderTopics();selectedTopic('measurement');
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
 document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>{state.level=b.dataset.level;document.querySelectorAll('[data-level]').forEach(n=>n.setAttribute('aria-pressed',String(n===b)));renderTasks();}));
 el('topicToggle').addEventListener('click',()=>{const open=el('topicList').classList.toggle('open');el('topicToggle').setAttribute('aria-expanded',String(open));});
 el('openLogin').addEventListener('click',()=>el('loginDialog').showModal());el('closeLogin').addEventListener('click',()=>el('loginDialog').close());
-el('startPractice').addEventListener('click',()=>{showView('practice');el('content').focus();});
 el('returnMeasurement').addEventListener('click',()=>selectedTopic('measurement'));
 el('refreshResults').addEventListener('click',refreshWorkspace);el('lessonForm').addEventListener('submit',makeLesson);
