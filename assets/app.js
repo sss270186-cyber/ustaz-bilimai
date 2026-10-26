@@ -27,6 +27,18 @@ function renderTopics() {
     b.addEventListener('click',()=>selectedTopic(topicIds[index]));return b;
   }));
 }
+function filterTopics() {
+  const query=el('topicSearch').value.trim().toLocaleLowerCase('kk-KZ');let visible=0;
+  document.querySelectorAll('.topic-button').forEach((button,index)=>{const match=!query||`${topicNames[index]} ${topicIds[index]}`.toLocaleLowerCase('kk-KZ').includes(query);button.hidden=!match;if(match)visible++;});
+  el('topicSearchStatus').hidden=!query;el('topicSearchStatus').textContent=visible?`${visible} тақырып табылды`:'Тақырып табылмады. Басқа сөзбен іздеп көріңіз.';
+  if(query){el('topicList').classList.add('open');el('topicToggle').setAttribute('aria-expanded','true');}
+}
+function renderTopicProgress() {
+  document.querySelectorAll('.topic-button').forEach(button=>{
+    const count=new Set((state.workspace?.attempts||[]).filter(a=>a.student_id===state.user?.id&&state.workspace.tasks.some(t=>t.id===a.task_id&&t.topic_id===button.dataset.topic)).map(a=>a.task_id)).size;
+    button.querySelector('.soon').textContent=count?`${count}/12 ✓`:'2B · 10C';
+  });
+}
 function showView(view) {
   if(view==='students' && state.profile?.role!=='teacher')return;
   state.view=view;
@@ -57,7 +69,7 @@ async function refreshWorkspace() {
     state.workspace=data;
     // Server-owned role is authoritative for learning management.
     if(data.role!==state.profile?.role)state.profile={...state.profile,role:data.role};
-    updateAccount();renderTasks();renderResults();renderTaskAdmin();
+    updateAccount();renderTasks();renderResults();renderTaskAdmin();renderTopicProgress();
     notice('Жеке кабинет қосылды. Әр жауап тексерілгенде нәтиже дерекқорға сақталады.');
   } catch(error) {if(epoch===state.epoch){state.workspace=null;notice(error.message,true);renderTasks();renderResults();renderTaskAdmin();}}
 }
@@ -68,7 +80,7 @@ function renderTasks() {
   const tasks=state.workspace.tasks.filter(t=>t.topic_id===state.topic&&t.level===state.level&&t.active);
   if(!tasks.length){empty(target,'Бұл деңгейдегі тапсырмалар уақытша жасырылған.');return;}
   target.replaceChildren(...tasks.map(t=>{
-    const card=node('article',undefined,'panel task');
+    const card=node('article',undefined,'panel task');card.id='task-'+t.id;
     const top=node('div',undefined,'task-top');top.append(node('span',`${t.level} ДЕҢГЕЙІ · ${String(t.position).padStart(2,'0')}`,'badge'),node('span',t.id,'task-id'));
     card.append(top,node('h3',t.title),node('p',t.prompt,'task-prompt'));
     if(t.code){const pre=node('pre',undefined,'code-block');pre.append(node('code',t.code));card.append(pre);}
@@ -94,7 +106,7 @@ function renderTasks() {
         const steps=node('ol');result.steps.forEach(s=>steps.append(node('li',s)));feedback.append(steps);
         if(result.explanation)feedback.append(node('h4','Түсіндірме'),node('p',result.explanation));
         // Refresh the cached statistics without replacing this task and its explanation.
-        try {const workspace=await api('/api/learning');if(epoch===state.epoch){state.workspace=workspace;renderResults();}}catch{notice('Жауап сақталды. Статистиканы жаңарту үшін «Жаңарту» батырмасын басыңыз.',true);}
+        try {const workspace=await api('/api/learning');if(epoch===state.epoch){state.workspace=workspace;renderResults();renderTopicProgress();}}catch{notice('Жауап сақталды. Статистиканы жаңарту үшін «Жаңарту» батырмасын басыңыз.',true);}
       }catch(error){if(epoch===state.epoch){feedback.className='feedback incorrect';feedback.append(node('p',error.message));}}
       finally{button.disabled=false;button.textContent='Тексеру';}
     });
@@ -155,6 +167,7 @@ function updateAccount() {
   const logged=Boolean(state.user),teacher=state.profile?.role==='teacher';
   el('accountName').textContent=logged?(state.profile?.full_name||state.user.email||'Жеке кабинет'):'Жеке дайындық алаңы';
   el('openLogin').hidden=logged;el('logout').hidden=!logged;el('studentsTab').hidden=!teacher;
+  renderTopicProgress();
   if(!teacher&&state.view==='students')showView('theory');
 }
 function clearAccount() {
@@ -184,6 +197,7 @@ function renderTheory(id){
  const source=node('a',lesson.source[0]);source.href=lesson.source[1];source.target='_blank';source.rel='noopener noreferrer';check.append(source);target.append(check);
 }
 renderTopics();selectedTopic('measurement');
+el('topicSearch').addEventListener('input',filterTopics);
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.view)));
 document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>{state.level=b.dataset.level;document.querySelectorAll('[data-level]').forEach(n=>n.setAttribute('aria-pressed',String(n===b)));renderTasks();}));
 el('topicToggle').addEventListener('click',()=>{const open=el('topicList').classList.toggle('open');el('topicToggle').setAttribute('aria-expanded',String(open));});

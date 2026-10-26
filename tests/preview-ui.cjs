@@ -1,0 +1,22 @@
+const {chromium}=require('playwright'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
+const {execFileSync}=require('node:child_process');const {startPreview}=require('../preview/local.cjs');const {topics}=require('../scripts/curriculum.cjs');
+(async()=>{
+ let app,browser,tmp;try{
+  tmp=fs.mkdtempSync(path.join(os.tmpdir(),'bilimai-preview-ui-'));execFileSync(process.execPath,['preview/build.cjs',tmp]);app=await startPreview(path.join(tmp,'worker/index.js'));
+  browser=await chromium.launch({headless:true,...(process.env.BROWSER_EXECUTABLE?{executablePath:process.env.BROWSER_EXECUTABLE}:{})});
+  const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[],outside=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(!r.url().startsWith(app.origin))outside.push(r.url());});
+  await page.goto(app.origin);await page.waitForFunction(()=>state.workspace?.role==='student');assert.equal(await page.locator('.preview-banner').isVisible(),true);
+  await page.locator('#topicSearch').fill('Python');assert.equal(await page.locator('.topic-button:visible').count(),2);await page.locator('#topicSearch').fill('');
+  for(const topic of topics){await page.locator(`[data-topic="${topic.id}"]`).click();assert.ok(await page.locator('#theory .panel').count()>=5);await page.locator('[data-view=practice]').click();await page.locator('[data-level=B]').click();assert.equal(await page.locator('.task').count(),2);await page.locator('[data-level=C]').click();assert.equal(await page.locator('.task').count(),10);assert.equal(await page.locator('.feedback').count(),0);}
+  const submit=async(id,answer)=>{await page.locator('#answer-'+id).fill(answer);await page.locator('#task-'+id+' button[type=submit]').click();await page.locator('#feedback-'+id+' strong').waitFor();};
+  await page.locator('[data-topic=python]').click();await page.locator('[data-view=practice]').click();await submit('python-c02','15 17 15');assert.match(await page.locator('#feedback-python-c02').textContent(),/Дұрыс!/);
+  await page.locator('[data-topic=ip]').click();await page.locator('[data-view=practice]').click();await submit('ip-c04','10.42.9.99');assert.match(await page.locator('#feedback-ip-c04').textContent(),/Қатені талдау.*broadcast/s);
+  await page.reload();await page.waitForFunction(()=>state.workspace?.role==='student');await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'2');
+  await page.getByRole('button',{name:'Мұғалім болып көру',exact:true}).click();await page.waitForFunction(()=>state.workspace?.role==='teacher');assert.match(await page.locator('#resultList').textContent(),/Сынақ оқушысы 1/);
+  await page.locator('#studentsTab').click();await page.locator('#newLogin').fill('qa_preview');await page.locator('#newFullName').fill('Жасанды сынақ оқушысы');await page.locator('#newPassword').fill('Preview-Test-2026');await page.locator('#createStudentForm button').click();await page.locator('#studentsTable').getByText('qa_preview').waitFor();
+  await page.locator('.admin-task').first().getByRole('button',{name:'Жасыру'}).click();await page.waitForFunction(()=>state.workspace.tasks.some(t=>t.active===false));await page.locator('.admin-task').first().getByRole('button',{name:'Ашу',exact:true}).click();
+  await page.setViewportSize({width:390,height:844});await page.locator('[data-view=results]').click();assert.equal(await page.locator('#resultList').isVisible(),true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  if(process.env.UI_SCREENSHOT_DIR){fs.mkdirSync(process.env.UI_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.UI_SCREENSHOT_DIR,'preview-mobile.png'),fullPage:true});await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(process.env.UI_SCREENSHOT_DIR,'preview-desktop.png'),fullPage:true});}
+  assert.deepEqual(errors,[]);assert.deepEqual(outside,[]);console.log('Preview UI passed: all 19/228, search, server grading, feedback, local history after reload, demo modes, synthetic registration, teacher controls/mobile; zero external requests.');
+ }finally{if(browser)await browser.close();if(app)await app.close();if(tmp)fs.rmSync(tmp,{recursive:true,force:true});}
+})().catch(e=>{console.error(e);process.exitCode=1;});

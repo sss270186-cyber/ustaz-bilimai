@@ -1,5 +1,7 @@
 # Ustaz BilimAI: backup, staging және жариялауға дайындық
 
+> Жаңа нұсқау: backup, hosted staging және PostgreSQL орнату тоқтатылды. Браузерден ашылатын бөлек сынақ нұсқасы дайын: [PREVIEW.md](PREVIEW.md). Қазіргі автоматты тест саны — 71. Төмендегі 67 тест пен Production дайындық шарттары алдыңғы кезеңнің есебі ретінде сақталған; олар Preview қарауға кедергі емес.
+
 Тексеру күні: **2026-10-26**. Жұмыс [draft PR №1](https://github.com/sss270186-cyber/ustaz-bilimai/pull/1) ішінде. **Production-ға жариялауға әзірге дайын емес: нақты backup/restore және hosted staging қабылдауы аяқталмаған.**
 
 ## Орындалғаны

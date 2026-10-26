@@ -10,7 +10,8 @@
     "test:programs": "node scripts/verify-programs.cjs",
     "dev:local": "node scripts/local-server.cjs",
     "test:css": "node tests/css-smoke.cjs",
-    "test:excel": "node tests/excel-quality.cjs"
+    "test:excel": "node tests/excel-quality.cjs",
+    "test:preview": "node tests/preview-ui.cjs"
   },
   "engines": {
     "node": ">=22"

@@ -6,3 +6,5 @@
 
 .code-block{background:#152f29;color:#ecf4e6;padding:20px;border-radius:8px;overflow:auto;white-space:pre;font:13px/1.7 ui-monospace,monospace;tab-size:4}.formula{overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}.feedback h4{margin-top:18px;font-size:13px}
 .local-banner{background:#f7e6a2;color:#4b4018;padding:12px 20px;text-align:center;font-size:12px;line-height:1.5}
+.topic-search{font-size:11px;color:var(--muted);margin:0 8px 18px}.topic-search input{font-size:12px;padding:11px;min-height:42px}.search-status{font-size:12px;padding:0 10px;color:var(--muted)}.task{scroll-margin-top:24px}.topic-button .soon{min-width:48px;text-align:right}
+@media(max-width:760px){.topic-search{margin:0 0 12px}.topic-search input{margin-top:5px}.search-status{padding:0}}

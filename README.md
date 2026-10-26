@@ -2,6 +2,10 @@
 
 PR №1 ішіндегі әзірлеу нұсқасы. **Production, бұрынғы Supabase және пайдаланушы аккаунттары өзгертілмейді. PR бөлек рұқсатсыз біріктірілмейді.**
 
+**Браузерде сынап көру:** https://ustaz-bilimai-unt-preview.chatgpt-edu-5235.chatgpt.site
+
+«Оқушы болып көру» / «Мұғалім болып көру» батырмалары бар. Ештеңе орнату қажет емес. Жауап серверде тексеріледі; сынақ нәтижелері осы браузерде сақталады. Нақты Supabase аккаунттары қосылмаған. [Сынақ нұсқасының нұсқаулығы және тексеру есебі](docs/PREVIEW.md).
+
 ## Мазмұн
 
 19 тақырыптың әрқайсысында теория, B деңгейіндегі 2 және C деңгейіндегі 10 авторлық тапсырма бар: барлығы **228 тапсырма**. Теория мақсаттар, түсіндіру бөлімдері, формулалар/ережелер, мысалдар, өзіндік тексеру сұрақтары және анықтамалық сілтемелерден тұрады.
@@ -34,9 +38,10 @@ npm run test:excel
 npx playwright install chromium
 npm run test:ui
 npm run test:css
+npm run test:preview
 ```
 
-Жүйелік Chromium үшін соңғы командаларға `BROWSER_EXECUTABLE=/usr/bin/chromium` қосуға болады. `npm test`: 67 тест, оның ішінде барлық 228 жауапты PostgreSQL grading арқылы өткізу, Preview оқшаулауы және қауіпсіз staging bootstrap. `test:programs`: 36 Python/SQL кодын орындау және IP-ді stdlib модулімен тексеру. `test:css`: 12 HTML/CSS жауабын нақты браузерде есептеу. `test:ui`: 19 бөлім, 228 тапсырма карточкасы, жауап/шешім, сақтау, мұғалім кабинеті, жаңа жергілікті аккаунт, деректер оқшаулануы және mobile.
+Жүйелік Chromium үшін соңғы командаларға `BROWSER_EXECUTABLE=/usr/bin/chromium` қосуға болады. `npm test`: 71 тест, оның ішінде барлық 228 жауапты PostgreSQL және Preview grading арқылы өткізу, жауап кілтін қорғау, Preview оқшаулауы және қауіпсіз staging bootstrap. `test:programs`: 36 Python/SQL кодын орындау және IP-ді stdlib модулімен тексеру. `test:css`: 12 HTML/CSS жауабын нақты браузерде есептеу. `test:ui`: 19 бөлім, 228 тапсырма карточкасы, жауап/шешім, сақтау, мұғалім кабинеті, жаңа жергілікті аккаунт, деректер оқшаулануы және mobile. `test:preview`: жеке Preview Worker мен demo режимдерінің browser QA-сы.
 
 ## Hosted жүйеге дайындау
 
@@ -54,7 +59,7 @@ npm run test:css
 
 Қолданыстағы логин/email пішімі, ҚМЖ үлгісі, `localStorage.bilimai_results` және бөлек `app.py` сақталған. Мұғалім жаңа оқушы тіркеп, нәтижелерін көріп, тапсырманы жасырып/аша алады. Толық тапсырма редакторы, еркін код орындау, бірнеше ұйымға арналған иелік шекаралары және production интеграциясы әлі жасалмаған.
 
-Іске қосуға дайындықтың қазіргі есебі: [docs/READINESS.md](docs/READINESS.md). Free тарифіндегі DB/Auth backup және restore: [docs/BACKUP.md](docs/BACKUP.md). Браузердегі бөлек Supabase/Vercel Preview қадамдары: [docs/STAGING.md](docs/STAGING.md). Preview тек бөлек базаға қосылуы үшін `BILIMAI_STAGING_SUPABASE_URL` міндетті; қате баптауда API Supabase-ке сұрау жібермей 503 береді. Нақты backup/restore және hosted staging әлі орындалмаған. Бұрынғы кезеңдер есебі тарихи құжат ретінде сақталған.
+Қазіргі басымдық — [жұмыс істейтін жеке Preview](docs/PREVIEW.md). Backup, hosted staging және PostgreSQL орнату пайдаланушының соңғы нұсқауымен тоқтатылды; олар Preview үшін талап етілмейді. Бұрынғы [дайындық есебі](docs/READINESS.md), [backup](docs/BACKUP.md) және [staging](docs/STAGING.md) нұсқаулықтары кейінге сақталған. Vercel/Supabase интеграциясының guard-ы сақталды; жаңа Sites Preview ол credentials-ті қолданбайды. Нақты backup/restore және hosted Supabase staging әлі орындалмаған.
 
 ## Терең сапа аудиті
 
