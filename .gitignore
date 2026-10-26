@@ -4,3 +4,14 @@
 node_modules/
 work/
 __pycache__/
+.vercel/
+backups/
+*.dump
+*.backup
+.pgpass*
+roles.sql
+schema.sql
+data.sql
+history_schema.sql
+history_data.sql
+SHA256SUMS

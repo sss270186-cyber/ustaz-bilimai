@@ -1,6 +1,6 @@
 const {test,afterEach,after}=require('node:test');const assert=require('node:assert/strict');
 const learning=require('../api/learning.js'),students=require('../api/students.js'),config=require('../api/config.js');
-const saved=Object.fromEntries(['SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','SUPABASE_SERVICE_ROLE_KEY'].map(k=>[k,process.env[k]]));
+const saved=Object.fromEntries(['SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','SUPABASE_SERVICE_ROLE_KEY','VERCEL_ENV','BILIMAI_STAGING_SUPABASE_URL'].map(k=>[k,process.env[k]]));
 const originalFetch=global.fetch;
 const response=(data,status=200)=>({ok:status>=200&&status<300,status,json:async()=>data});
 function run(handler,{method='GET',token='fake-user-token',body}={}){
@@ -9,6 +9,7 @@ function run(handler,{method='GET',token='fake-user-token',body}={}){
  return Promise.resolve(handler(req,res)).then(()=>res);
 }
 function setup(responses){
+ delete process.env.VERCEL_ENV;delete process.env.BILIMAI_STAGING_SUPABASE_URL;
  process.env.SUPABASE_URL='https://test.supabase.co';process.env.SUPABASE_PUBLISHABLE_KEY='fake-public';process.env.SUPABASE_SERVICE_ROLE_KEY='fake-admin';
  const calls=[];global.fetch=async(url,options)=>{calls.push({url,options});const r=responses.shift();if(r instanceof Error)throw r;if(!r)throw Error('Unexpected request');return r;};return calls;
 }
@@ -57,4 +58,32 @@ test('existing administration remains available before migration',async()=>{
 });
 test('config endpoint only returns public configuration',async()=>{
  setup([]);const r=await run(config);assert.deepEqual(r.data,{url:'https://test.supabase.co',publishableKey:'fake-public'});assert.equal(JSON.stringify(r.data).includes('fake-admin'),false);
+});
+test('misconfigured Vercel Preview blocks all APIs before any Supabase network request',async()=>{
+ const cases=[
+  {SUPABASE_URL:'https://kbnwfuvfnspanoomusmu.supabase.co',BILIMAI_STAGING_SUPABASE_URL:'https://kbnwfuvfnspanoomusmu.supabase.co'},
+  {SUPABASE_URL:'https://test.supabase.co'},
+  {SUPABASE_URL:'https://other.supabase.co',BILIMAI_STAGING_SUPABASE_URL:'https://test.supabase.co'},
+  {SUPABASE_URL:'https://test.supabase.co',BILIMAI_STAGING_SUPABASE_URL:'https://test.supabase.co/path'},
+  {SUPABASE_URL:'http://test.supabase.co',BILIMAI_STAGING_SUPABASE_URL:'http://test.supabase.co'}
+ ];
+ for(const values of cases){
+  const calls=setup([]);Object.assign(process.env,{VERCEL_ENV:'preview'},values);
+  for(const handler of [config,learning,students]){
+   const result=await run(handler);assert.equal(result.code,503);assert.equal(JSON.stringify(result.data).includes('fake-admin'),false);
+  }
+  assert.equal(calls.length,0);
+ }
+});
+test('explicit separate staging Preview works with the caller JWT and public-only configuration',async()=>{
+ const calls=setup([response({id:'student-id'}),response({role:'student',tasks:[]})]);
+ Object.assign(process.env,{VERCEL_ENV:'preview',BILIMAI_STAGING_SUPABASE_URL:'https://test.supabase.co/'});
+ assert.equal((await run(config)).code,200);assert.equal((await run(learning)).code,200);
+ assert.equal(calls.length,2);assert.equal(calls[1].options.headers.Authorization,'Bearer fake-user-token');
+});
+test('unauthenticated or student callers cannot create accounts by forging a teacher payload',async()=>{
+ let calls=setup([]);assert.equal((await run(students,{method:'POST',token:null,body:{role:'teacher'}})).code,401);assert.equal(calls.length,0);
+ calls=setup([response({id:'student-id'}),response([])]);
+ assert.equal((await run(students,{method:'POST',body:{role:'teacher',username:'forged',password:'not-a-real-password'}})).code,403);
+ assert.equal(calls.length,2);assert.equal(calls.some(c=>c.url.includes('/auth/v1/admin/')),false);
 });

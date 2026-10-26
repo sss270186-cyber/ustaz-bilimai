@@ -8,7 +8,7 @@ const {startLocal,PASSWORD}=require('../scripts/local-server.cjs');const {topics
   const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(app.origin);await page.waitForFunction(()=>state.client!==null);
   assert.equal(await page.locator('.local-banner').isVisible(),true);assert.equal(await page.locator('.topic-button').count(),19);
-  for(const path of ['/scripts/curriculum.cjs','/scripts/local-server.cjs','/supabase/migrations/202610180004_full_curriculum.sql','/app.py'])assert.equal((await page.request.get(app.origin+path)).status(),404);
+  for(const path of ['/scripts/curriculum.cjs','/scripts/local-server.cjs','/supabase/migrations/202610180004_full_curriculum.sql','/supabase/migrations/202610180005_quality_review.sql','/ops/backup-inventory.sql','/ops/staging-bootstrap.sql','/docs/BACKUP.md','/app.py'])assert.equal((await page.request.get(app.origin+path)).status(),404);
   if(process.env.UI_SCREENSHOT_DIR){fs.mkdirSync(process.env.UI_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.UI_SCREENSHOT_DIR+'/desktop.png',fullPage:true});}
   async function login(role,name,password=PASSWORD){await page.locator('#openLogin').click();await page.locator('#loginRole').selectOption(role);await page.locator('#loginName').fill(name);await page.locator('#loginPassword').fill(password);await page.locator('#loginSubmit').click();await page.waitForFunction(r=>state.workspace?.role===r,role);}
   async function logout(){await page.locator('#logout').click();await page.waitForFunction(()=>state.user===null);await page.locator('#openLogin').waitFor();}
@@ -36,7 +36,10 @@ const {startLocal,PASSWORD}=require('../scripts/local-server.cjs');const {topics
   await logout();await login('student','qa_browser');await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'0');await logout();
   await page.setViewportSize({width:390,height:844});await page.locator('#topicToggle').click();await page.locator('[data-topic=hardware]').click();assert.equal(await page.locator('#theory').isVisible(),true);assert.equal(await page.locator('#pending').isVisible(),false);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  await login('teacher','teacher@local.test');await page.locator('[data-view=results]').click();
+  assert.equal(await page.locator('#resultList').isVisible(),true);assert.match(await page.locator('#resultList').textContent(),/Жергілікті сынақ оқушысы/);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(process.env.UI_SCREENSHOT_DIR)await page.screenshot({path:process.env.UI_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
-  assert.deepEqual(errors,[]);console.log('UI passed: all 19 theory lessons and 228 task cards; local PostgreSQL grading, number/sequence/IP answers, explanation gating, saved results after reload, teacher controls, new account, result isolation, QMJ escaping and mobile layout. Auth is a local emulator.');
+  assert.deepEqual(errors,[]);console.log('UI passed: all 19 theory lessons and 228 task cards; local PostgreSQL grading, number/sequence/IP answers, explanation gating, saved results after reload, teacher controls and results on desktop/mobile, new account, result isolation, private ops paths, QMJ escaping and mobile layout. Auth is a local emulator.');
  }finally{if(browser)await browser.close();if(app)await app.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

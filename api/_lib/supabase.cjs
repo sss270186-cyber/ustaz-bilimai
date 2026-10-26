@@ -1,8 +1,10 @@
+const {checkEnvironment} = require('./environment.cjs');
 function headers(res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
 }
 async function authenticate(req) {
+  checkEnvironment();
   const base = process.env.SUPABASE_URL?.replace(/\/$/, '');
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!base || !key) throw Object.assign(Error('Сервер баптауы толық емес'), {status: 503});
