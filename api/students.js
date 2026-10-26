@@ -1,38 +1,36 @@
-// Server-only. Requires SUPABASE_SERVICE_ROLE_KEY (legacy service_role JWT).
+// Only the server holds the admin key. Authorization always uses the caller's JWT/RPC.
+const {headers,authenticate,rpc}=require('./_lib/supabase.cjs');
 const EMAIL_DOMAIN='students.ustaz-bilimai.example.com';
-module.exports=async function handler(req,res){
-  res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
-  if(!['GET','POST'].includes(req.method))return res.status(405).json({error:'Method not allowed'});
-  const url=process.env.SUPABASE_URL;
-  const publicKey=process.env.SUPABASE_PUBLISHABLE_KEY;
-  const adminKey=process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if(!url||!publicKey||!adminKey)return res.status(503).json({error:'Сервер баптауы толық емес'});
-  const bearer=(req.headers.authorization||'').match(/^Bearer (.+)$/);
-  if(!bearer)return res.status(401).json({error:'Кіру қажет'});
-  const base=url.replace(/\/$/,'');
-  const auth=await fetch(`${base}/auth/v1/user`,{headers:{apikey:publicKey,Authorization:`Bearer ${bearer[1]}`}}).catch(()=>null);
-  if(!auth||!auth.ok)return res.status(401).json({error:'Сеанс жарамсыз'});
-  const user=await auth.json();
-  const adminHeaders={apikey:adminKey,Authorization:`Bearer ${adminKey}`};
-  const roleRes=await fetch(`${base}/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=role`,{headers:adminHeaders});
-  if(!roleRes.ok)return res.status(503).json({error:'Рөлді тексеру мүмкін болмады'});
-  const roles=await roleRes.json();
-  if(roles[0]?.role!=='teacher')return res.status(403).json({error:'Тек мұғалімге рұқсат'});
-  if(req.method==='GET'){
-    const r=await fetch(`${base}/rest/v1/profiles?role=eq.student&select=username,full_name,class_name&order=created_at.asc`,{headers:adminHeaders});
-    if(!r.ok)return res.status(502).json({error:'Оқушылар тізімі алынбады'});
-    return res.status(200).json({students:await r.json()});
+module.exports=async(req,res)=>{
+ headers(res);if(!['GET','POST'].includes(req.method))return res.status(405).json({error:'Әдіс рұқсат етілмеген'});
+ try{
+  const context=await authenticate(req);
+  if(req.method==='GET')return res.status(200).json({students:await rpc(context,'unt_teacher_students')});
+  const access=await rpc(context,'unt_account_access');if(access?.teacher!==true)return res.status(403).json({error:'Тек мұғалімге рұқсат'});
+  const body=req.body||{},action=body.action||'create',username=body.username;
+  if(typeof username!=='string'||!/^[a-z][a-z0-9_]{2,23}$/.test(username))return res.status(400).json({error:'Логин пішімі дұрыс емес'});
+  if(action==='enroll')return res.status(200).json(await rpc(context,'unt_enroll_student',{p_username:username}));
+  if(!['create','reset_password'].includes(action))return res.status(400).json({error:'Белгісіз әрекет'});
+  const password=body.password;if(typeof password!=='string'||password.length<12||password.length>128)return res.status(400).json({error:'Құпиясөз 12–128 таңба болсын'});
+  const admin=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!admin)return res.status(503).json({error:'Оқушы басқаруының сервер баптауы толық емес'});
+  const adminHeaders={apikey:admin,Authorization:'Bearer '+admin,'Content-Type':'application/json'};
+  const request=(path,options={})=>fetch(context.base+path,{...options,headers:{...adminHeaders,...options.headers},signal:AbortSignal.timeout(10000)});
+  if(action==='reset_password'){
+   const target=await rpc(context,'unt_student_target',{p_username:username});
+   const changed=await request('/auth/v1/admin/users/'+encodeURIComponent(target),{method:'PUT',body:JSON.stringify({password})});
+   if(!changed.ok)return res.status(502).json({error:'Құпиясөз жаңартылмады. Қайта көріңіз.'});
+   try{await rpc(context,'unt_revoke_access',{p_user_id:target});}catch{return res.status(502).json({error:'Құпиясөз жаңарды, бірақ ескі қолданба сеанстарын жабу расталмады. Әкімшіге хабарласыңыз.'});}
+   return res.status(200).json({ok:true});
   }
-  const {username,full_name,class_name,password}=req.body||{};
-  if(typeof username!=='string'||!/^[a-z][a-z0-9_]{2,23}$/.test(username)||typeof full_name!=='string'||full_name.trim().length<2||full_name.length>120||!['9','10','11'].includes(class_name)||typeof password!=='string'||password.length<12||password.length>128)return res.status(400).json({error:'Мәліметтерді тексеріңіз (құпиясөз кемінде 12 таңба)'});
-  const email=`${username}@${EMAIL_DOMAIN}`;
-  const exists=await fetch(`${base}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=id`,{headers:adminHeaders});
-  if(!exists.ok)return res.status(502).json({error:'Логинді тексеру мүмкін болмады'});
-  if((await exists.json()).length)return res.status(409).json({error:'Бұл логин бос емес'});
-  const create=await fetch(`${base}/auth/v1/admin/users`,{method:'POST',headers:{...adminHeaders,'Content-Type':'application/json'},body:JSON.stringify({email,password,email_confirm:true,app_metadata:{bilimai_account:'student'}})});
-  const newUser=await create.json().catch(()=>({}));
-  if(!create.ok||!newUser.id)return res.status(create.status===422?409:502).json({error:'Аккаунт жасау мүмкін болмады. Логин басқа аккаунтта болуы мүмкін.'});
-  const insert=await fetch(`${base}/rest/v1/profiles`,{method:'POST',headers:{...adminHeaders,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({id:newUser.id,username,full_name:full_name.trim(),class_name,role:'student'})});
-  if(!insert.ok){await fetch(`${base}/auth/v1/admin/users/${newUser.id}`,{method:'DELETE',headers:adminHeaders}).catch(()=>{});return res.status(502).json({error:'Профиль жасалмады. Қайта көріңіз.'});}
-  return res.status(201).json({ok:true,username});
+  const {full_name,class_name}=body;
+  if(typeof full_name!=='string'||full_name.trim().length<2||full_name.length>120||!['9','10','11'].includes(class_name))return res.status(400).json({error:'Аты-жөні мен сыныпты тексеріңіз'});
+  const found=await request('/rest/v1/profiles?username=eq.'+encodeURIComponent(username)+'&select=id');if(!found.ok)return res.status(502).json({error:'Логинді тексеру мүмкін болмады'});
+  if((await found.json()).length)return res.status(409).json({error:'Бұл логин бос емес'});
+  const created=await request('/auth/v1/admin/users',{method:'POST',body:JSON.stringify({email:username+'@'+EMAIL_DOMAIN,password,email_confirm:true,app_metadata:{bilimai_account:'student'}})});
+  const newUser=await created.json().catch(()=>({}));if(!created.ok||!newUser.id)return res.status(created.status===422?409:502).json({error:'Аккаунт жасалмады. Логин бұрыннан қолданылуы мүмкін.'});
+  const profile=await request('/rest/v1/profiles?on_conflict=id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:newUser.id,username,full_name:full_name.trim(),class_name,role:'student'})});
+  if(!profile.ok)return res.status(502).json({error:'Auth аккаунты жасалды, бірақ профиль жазылмады. Қайта тіркемей, әкімшіге логинді беріңіз.'});
+  let enrolled=false;try{await rpc(context,'unt_enroll_student',{p_username:username});enrolled=true;}catch{/* Preserve the new Auth account/profile on partial failure. */}
+  return res.status(201).json({ok:true,username,enrolled,warning:enrolled?null:'Аккаунт сақталды. «Топқа қосу» арқылы байланыстырыңыз.'});
+ }catch(e){return res.status(e.status||502).json({error:e.status?e.message:'Байланыс қатесі. Тіркеуден кейін алдымен оқушылар тізімін тексеріңіз.'});}
 };
