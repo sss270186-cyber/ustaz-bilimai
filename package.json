@@ -11,7 +11,8 @@
     "dev:local": "node scripts/local-server.cjs",
     "test:css": "node tests/css-smoke.cjs",
     "test:excel": "node tests/excel-quality.cjs",
-    "test:preview": "node tests/preview-ui.cjs"
+    "test:preview": "node tests/preview-ui.cjs",
+    "test:platform": "node tests/platform-ui.cjs"
   },
   "engines": {
     "node": ">=22"

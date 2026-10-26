@@ -15,3 +15,6 @@ data.sql
 history_schema.sql
 history_data.sql
 SHA256SUMS
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
