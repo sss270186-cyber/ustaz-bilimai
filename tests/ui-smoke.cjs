@@ -26,7 +26,7 @@ const {startLocal,PASSWORD}=require('../scripts/local-server.cjs');const {topics
   await page.locator('[data-topic=ip]').click();await page.locator('[data-view=practice]').click();await submit('ip-c02','10.24.39.255');assert.match(await page.locator('#feedback-ip-c02').textContent(),/Дұрыс!/);
   await submit('ip-c04','10.42.9.99');assert.match(await page.locator('#feedback-ip-c04').textContent(),/Қатені талдау.*broadcast/s);
   await page.reload();await page.waitForFunction(()=>state.workspace?.role==='student');await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'5');
-  await page.locator('[data-view=lesson]').click();await page.locator('#lessonTopic').fill('<img src=x onerror=alert(1)>');await page.locator('#lessonForm button').click();assert.equal(await page.locator('#lessonText img').count(),0);
+  assert.equal(await page.locator('[data-view=lesson],#lessonForm,#lessonText').count(),0);
   await logout();assert.equal(await page.locator('.feedback').count(),0);
   await login('teacher','teacher@local.test');await page.locator('#studentsTab').click();await page.locator('#studentsTable').getByText('student01').waitFor();assert.equal(await page.locator('.admin-task').count(),12);
   await page.locator('.admin-task').first().getByRole('button',{name:'Жасыру'}).click();await page.waitForFunction(()=>state.workspace.tasks.find(t=>t.id==='measure-b01').active===false);
@@ -40,6 +40,26 @@ const {startLocal,PASSWORD}=require('../scripts/local-server.cjs');const {topics
   assert.equal(await page.locator('#resultList').isVisible(),true);assert.match(await page.locator('#resultList').textContent(),/Жергілікті сынақ оқушысы/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
   if(process.env.UI_SCREENSHOT_DIR)await page.screenshot({path:process.env.UI_SCREENSHOT_DIR+'/mobile.png',fullPage:true});
-  assert.deepEqual(errors,[]);console.log('UI passed: all 19 theory lessons and 228 task cards; local PostgreSQL grading, number/sequence/IP answers, explanation gating, saved results after reload, teacher controls and results on desktop/mobile, new account, result isolation, private ops paths, QMJ escaping and mobile layout. Auth is a local emulator.');
+  await page.setViewportSize({width:1440,height:1000});await page.locator('[data-topic=measurement]').click();await page.locator('#studentsTab').click();
+  await page.locator('.admin-task').first().getByRole('button',{name:'Өңдеу',exact:true}).click();
+  await page.waitForFunction(()=>editingTask?.id==='measure-b01');
+  assert.equal(await page.locator('#edit-answer').inputValue(),'1792');
+  await page.locator('#edit-title').fill('Браузерде тексерілген жаңа атау');await page.locator('#saveTask').click();
+  await page.waitForFunction(()=>!document.querySelector('#taskEditor').open);
+  assert.match(await page.locator('#adminStatus').textContent(),/v3|v2/);
+  await page.locator('[data-view=results]').click();const downloadWait=page.waitForEvent('download');await page.locator('#downloadResults').click();
+  const download=await downloadWait;assert.equal(download.suggestedFilename(),'bilimai-results.csv');
+  assert.match(fs.readFileSync(await download.path(),'utf8'),/student01/);
+  await page.locator('#studentsTab').click();const row=page.locator('#studentsTable tr').filter({hasText:'student01'});
+  await row.getByRole('button',{name:'Жаңарту',exact:true}).click();
+  await page.locator('#updatedPassword').fill('Reset-Only-2026!');await page.locator('#confirmPassword').fill('Reset-Only-2026!');await page.locator('#savePassword').click();
+  await page.waitForFunction(()=>!document.querySelector('#passwordDialog').open);await logout();
+  assert.equal(await page.locator('#edit-answer').inputValue(),'');await login('student','student01','Reset-Only-2026!');
+  await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'5');
+  assert.equal(await page.locator('#downloadResults').isVisible(),false);await page.locator('#changePassword').click();
+  await page.locator('#currentPassword').fill('Reset-Only-2026!');await page.locator('#updatedPassword').fill('New-Student-2026!');await page.locator('#confirmPassword').fill('New-Student-2026!');await page.locator('#savePassword').click();
+  await page.waitForFunction(()=>state.user===null);await login('student','student01','New-Student-2026!');
+  await page.locator('[data-view=results]').click();assert.equal(await page.locator('.stat b').first().textContent(),'5');
+  assert.deepEqual(errors,[]);console.log('UI passed: all 19 theory lessons and 228 task cards; local PostgreSQL grading, number/sequence/IP answers, explanation gating, saved results after reload, teacher controls and results on desktop/mobile, new account, result isolation, private ops paths, QMJ removal, task revision editing, CSV download, teacher password reset, self password change with re-login, retained results and mobile layout. Auth is a local emulator.');
  }finally{if(browser)await browser.close();if(app)await app.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

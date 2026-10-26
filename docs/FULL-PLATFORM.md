@@ -1,3 +1,5 @@
+> **Тарихи кезеңнің есебі.** Қазіргі Vercel/Supabase нұсқасы мен нақты жариялау тәртібі: [VERCEL-RELEASE.md](VERCEL-RELEASE.md). Төмендегі ескі сілтемелер мен тест сандары қазіргі іске қосу мәртебесін білдірмейді.
+
 # Ustaz BilimAI — тұрақты кабинеттері бар жаңа сайт
 
 Сілтеме: https://ustaz-bilimai-unt-preview.chatgpt-edu-5235.chatgpt.site

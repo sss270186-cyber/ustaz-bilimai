@@ -1,0 +1,12 @@
+.git
+.env*
+!.env.example
+node_modules
+work
+tests
+scripts
+supabase
+ops
+docs
+app.py
+requirements.txt

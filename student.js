@@ -58,12 +58,9 @@ async function loadStudents() {
   const epoch=state.epoch;
   try {
     const {students}=await api('/api/students');if(epoch!==state.epoch)return;
-    const linked=new Set((state.workspace?.roster||[]).map(s=>s.username));
-    el('studentsTable').replaceChildren(renderTable(['Логин','Оқушы','Сынып','Оқу тобы'],students.map(s=>{
-      if(linked.has(s.username))return [s.username,s.full_name,s.class_name,'Топта'];
-      const b=node('button','Топқа қосу','button secondary small');b.type='button';
-      b.addEventListener('click',async()=>{b.disabled=true;try{await api('/api/students',{method:'POST',body:JSON.stringify({action:'enroll',username:s.username})});if(epoch!==state.epoch)return;await refreshWorkspace();await loadStudents();}catch(error){if(epoch===state.epoch)el('adminStatus').textContent=error.message;b.disabled=false;}});
-      return [s.username,s.full_name,s.class_name,b];
+    el('studentsTable').replaceChildren(renderTable(['Логин','Оқушы','Сынып','Құпиясөз'],students.map(s=>{
+      const button=node('button','Жаңарту','button secondary small');button.type='button';button.addEventListener('click',()=>resetStudentPassword(s));
+      return [s.username,s.full_name,s.class_name,button];
     })));
   }catch(error){if(epoch===state.epoch)el('adminStatus').textContent=error.message;}
 }

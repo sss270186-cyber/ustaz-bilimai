@@ -10,7 +10,7 @@ const sdk=String.raw`window.supabase={createClient(){let callback=()=>{};let ses
  async signOut(){if(session)await request('/__local/logout',{});session=null;localStorage.removeItem('bilimai_local_session');callback('SIGNED_OUT',null);return {error:null}}},
  from(){return {select(){return {eq(){return {async single(){const {r,data}=await request('/__local/profile');return {data:r.ok?data:null,error:r.ok?null:{message:'Local profile missing'}}}}}}}}}}}};`;
 async function startLocal({port=0,log=()=>{}}={}) {
- const db=new PGlite(),accounts=new Map(),tokens=new Map();let queue=Promise.resolve();
+ const db=new PGlite(),accounts=new Map(),tokens=new Map(),sessionIds=new Map();let queue=Promise.resolve();
  const serial=fn=>{const result=queue.then(fn);queue=result.catch(()=>{});return result;};
  const addAccount=async(username,full_name,role,password,id=randomUUID(),class_name='11')=>{
   const email=role==='teacher'?'teacher@local.test':username+'@students.ustaz-bilimai.example.com';
@@ -19,18 +19,18 @@ async function startLocal({port=0,log=()=>{}}={}) {
   accounts.set(email,{id,email,username,full_name,role,class_name,salt,hash});return accounts.get(email);
  };
  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
- create schema auth;create table auth.users(id uuid primary key);
+ create schema auth;create table auth.users(id uuid primary key);create table auth.sessions(id uuid primary key,user_id uuid references auth.users,created_at timestamptz default now());
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth to authenticated,anon,service_role;
  create table public.profiles(id uuid primary key references auth.users(id),username text unique,full_name text,role text,class_name text,created_at timestamptz default now());`);
  const teacher=await addAccount('teacher','Жергілікті сынақ мұғалімі','teacher',PASSWORD);
  await addAccount('student01','Жергілікті сынақ оқушысы','student',PASSWORD);
- for(const file of ['202610180001_learning.sql','202610180002_measurement_seed.sql','202610180003_answer_formats.sql','202610180004_full_curriculum.sql','202610180005_quality_review.sql'])await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'));
+ for(const file of ['202610180001_learning.sql','202610180002_measurement_seed.sql','202610180003_answer_formats.sql','202610180004_full_curriculum.sql','202610180005_quality_review.sql','202610260006_vercel_management.sql'])await db.exec(fs.readFileSync(path.join(root,'supabase/migrations',file),'utf8'));
  const asUser=async(account,fn)=>{
-  await db.exec('set role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[account.id]);try{return await fn();}finally{await db.exec('reset role');}
+  await db.exec('set role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,false),set_config('request.jwt.claims',$2,false)",[account.id,JSON.stringify({sub:account.id,session_id:account.sessionId})]);try{return await fn();}finally{await db.exec('reset role');}
  };
  const callRpc=async(account,name,args=[])=>asUser(account,async()=>{
-  const allowed={unt_workspace:'select public.unt_workspace() as data',unt_submit_answer:'select public.unt_submit_answer($1,$2) as data',unt_set_task_active:'select public.unt_set_task_active($1,$2) as data'};
+  const allowed={unt_workspace:'select public.unt_workspace() as data',unt_submit_answer:'select public.unt_submit_answer($1,$2) as data',unt_set_task_active:'select public.unt_set_task_active($1,$2) as data',unt_teacher_students:'select public.unt_teacher_students() as data',unt_student_target:'select public.unt_student_target($1) as data',unt_enroll_student:'select public.unt_enroll_student($1) as data',unt_revoke_access:'select public.unt_revoke_access($1) as data',unt_account_access:'select public.unt_account_access() as data',unt_task_for_edit:'select public.unt_task_for_edit($1) as data',unt_edit_task:'select public.unt_edit_task($1,$2,$3) as data',unt_results_export:'select public.unt_results_export() as data'};
   return (await db.query(allowed[name],args)).rows[0].data;
  });
  let origin;
@@ -44,7 +44,7 @@ async function startLocal({port=0,log=()=>{}}={}) {
   if(req.method==='POST'){
    if(req.headers.origin&&req.headers.origin!==origin)return send({error:'Origin denied'},403);
    if(!req.headers['content-type']?.startsWith('application/json'))return send({error:'JSON required'},415);
-   let data='';for await(const chunk of req){data+=chunk;if(data.length>8192)return send({error:'Request too large'},413);}
+   let data='';for await(const chunk of req){data+=chunk;if(data.length>65536)return send({error:'Request too large'},413);}
    try{body=JSON.parse(data);}catch{return send({error:'Invalid JSON'},400);}
    if(!body||typeof body!=='object'||Array.isArray(body))return send({error:'Invalid body'},400);
   }
@@ -53,11 +53,11 @@ async function startLocal({port=0,log=()=>{}}={}) {
   if(pathname==='/api/config'&&req.method==='GET')return send({url:origin,publishableKey:'local-only',mode:'local-demo'});
   if(pathname==='/__local/login'&&req.method==='POST'){
    const a=accounts.get(body.email);if(!a||typeof body.password!=='string'||body.password.length>128||!timingSafeEqual(a.hash,scryptSync(body.password,a.salt,32)))return send({error:'Қате логин'},401);
-   const access_token=randomBytes(32).toString('hex');tokens.set(access_token,a);return send({session:{access_token,user:{id:a.id,email:a.email}}});
+   const access_token=randomBytes(32).toString('hex'),sessionId=randomUUID();await db.query('insert into auth.sessions(id,user_id) values($1,$2)',[sessionId,a.id]);tokens.set(access_token,{...a,sessionId});sessionIds.set(access_token,sessionId);return send({session:{access_token,user:{id:a.id,email:a.email}}});
   }
   if(pathname.startsWith('/api/')||pathname.startsWith('/__local/')){
    if(!account)return send({error:'Жүйеге кіріңіз'},401);
-   if(pathname==='/__local/session')return send({ok:true});
+   if(pathname==='/__local/session'){await callRpc(account,'unt_account_access');return send({ok:true});}
    if(pathname==='/__local/logout'&&req.method==='POST'){tokens.delete(token);return send({ok:true});}
    if(pathname==='/__local/profile')return send({full_name:account.full_name,class_name:account.class_name,role:account.role});
    if(pathname==='/api/learning'){
@@ -66,12 +66,25 @@ async function startLocal({port=0,log=()=>{}}={}) {
     if(body.action==='set_active'&&typeof body.task_id==='string'&&typeof body.active==='boolean')return send(await callRpc(account,'unt_set_task_active',[body.task_id,body.active]));
     return send({error:'Invalid action'},400);
    }
+   if(pathname==='/api/tasks'){
+    if(req.method==='GET')return send({task:await callRpc(account,'unt_task_for_edit',[new URL(req.url,origin).searchParams.get('id')])});
+    return send(await callRpc(account,'unt_edit_task',[body.task_id,body.revision,body]));
+   }
+   if(pathname==='/api/password'&&req.method==='POST'){
+    await callRpc(account,'unt_account_access');const stored=accounts.get(account.email);
+    if(typeof body.current!=='string'||typeof body.password!=='string'||body.password.length<12||!timingSafeEqual(stored.hash,scryptSync(body.current,stored.salt,32)))return send({error:'Қазіргі құпиясөзді тексеріңіз'},400);
+    stored.salt=randomBytes(16);stored.hash=scryptSync(body.password,stored.salt,32);await callRpc(account,'unt_revoke_access',[account.id]);return send({ok:true,reauthenticate:true});
+   }
+   if(pathname==='/api/results'){
+    const rows=await callRpc(account,'unt_results_export');res.setHeader('Content-Type','text/csv; charset=utf-8');res.end('Логин,Есеп\n'+rows.map(r=>r.username+','+r.task_id).join('\n'));return;
+   }
    if(pathname==='/api/students'){
-    if(account.role!=='teacher')return send({error:'Тек мұғалімге'},403);
-    if(req.method==='GET')return send({students:[...accounts.values()].filter(a=>a.role==='student').map(a=>({username:a.username,full_name:a.full_name,class_name:a.class_name}))});
+    await callRpc(account,'unt_account_access');if(account.role!=='teacher')return send({error:'Тек мұғалімге'},403);
+    if(req.method==='GET')return send({students:await callRpc(account,'unt_teacher_students')});
+    if(body.action==='reset_password'){const target=await callRpc(account,'unt_student_target',[body.username]);const stored=[...accounts.values()].find(a=>a.id===target);if(typeof body.password!=='string'||body.password.length<12)return send({error:'Құпиясөз қысқа'},400);stored.salt=randomBytes(16);stored.hash=scryptSync(body.password,stored.salt,32);await callRpc(account,'unt_revoke_access',[target]);return send({ok:true});}
     if(body.action==='enroll'){
      const a=[...accounts.values()].find(a=>a.username===body.username&&a.role==='student');if(!a)return send({error:'Оқушы жоқ'},404);
-     await db.query('insert into public.unt_enrollments values($1,$2) on conflict do nothing',[account.id,a.id]);return send({ok:true});
+     await callRpc(account,'unt_enroll_student',[body.username]);return send({ok:true});
     }
     if(!/^[a-z][a-z0-9_]{2,23}$/.test(body.username||'')||typeof body.password!=='string'||body.password.length<12||body.password.length>128||typeof body.full_name!=='string'||body.full_name.trim().length<2||body.full_name.length>120||!['9','10','11'].includes(body.class_name))return send({error:'Тіркеу мәліметтерін тексеріңіз'},400);
     if([...accounts.values()].some(a=>a.username===body.username))return send({error:'Логин бос емес'},409);
@@ -80,7 +93,7 @@ async function startLocal({port=0,log=()=>{}}={}) {
    return send({error:'Not found'},404);
   }
   if(req.method!=='GET')return send({error:'Not found'},404);
-  const files={'/':'index.html','/index.html':'index.html','/assets/style.css':'assets/style.css','/assets/lessons.js':'assets/lessons.js','/assets/theory-review.js':'assets/theory-review.js','/assets/app.js':'assets/app.js','/student.js':'student.js'};
+  const files={'/':'index.html','/index.html':'index.html','/assets/style.css':'assets/style.css','/assets/lessons.js':'assets/lessons.js','/assets/theory-review.js':'assets/theory-review.js','/assets/app.js':'assets/app.js','/assets/manage.js':'assets/manage.js','/student.js':'student.js'};
   if(!files[pathname])return send({error:'Not found'},404);
   let data=fs.readFileSync(path.join(root,files[pathname]),'utf8');
   if(files[pathname]==='index.html')data=data.replace('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js','/__local/auth.js').replace('<header class="topbar">','<div class="local-banner">ЖЕРГІЛІКТІ СЫНАҚ · Оқшауланған PostgreSQL, сынақ аккаунттары. Нақты Supabase емес. Қайта іске қосқанда деректер тазарады.</div><header class="topbar">');

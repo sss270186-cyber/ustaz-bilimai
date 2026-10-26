@@ -1,3 +1,5 @@
+> **Тарихи кезеңнің есебі.** Қазіргі Vercel/Supabase нұсқасы мен нақты жариялау тәртібі: [VERCEL-RELEASE.md](VERCEL-RELEASE.md). Төмендегі ескі сілтемелер мен тест сандары қазіргі іске қосу мәртебесін білдірмейді.
+
 > 2026-10-26: бұл файл тарихи күйді сақтайды. Қазіргі нәтиже: [READINESS.md](READINESS.md); қолмен орындалатын backup: [BACKUP.md](BACKUP.md); synthetic staging және Preview: [STAGING.md](STAGING.md). Нақты DB/Auth backup/restore және hosted staging әлі орындалмаған. Осы сессияда Production endpoint-ке сұрау жіберілген жоқ.
 
 # Staging жұмысының мәртебесі

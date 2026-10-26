@@ -16,6 +16,7 @@ jobs:
           python-version: "3.12"
       - run: npm ci
       - run: npm run check
+      - run: npm run build:vercel
       - run: npm run seed:check
       - run: npm test
       - run: npm run test:programs
@@ -23,5 +24,3 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - run: npm run test:css
-      - run: npm run test:preview
-      - run: npm run test:platform

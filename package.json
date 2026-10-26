@@ -4,15 +4,14 @@
   "scripts": {
     "test": "node --test --test-isolation=none tests/*.test.cjs",
     "check": "node scripts/check.cjs",
-    "seed:check": "node scripts/build-seed.cjs --check && node scripts/build-curriculum.cjs --check && node scripts/build-quality.cjs --check",
+    "seed:check": "node scripts/build-seed.cjs --check && node scripts/build-curriculum.cjs --check && node scripts/build-quality.cjs --check && node scripts/build-release.cjs --check",
     "test:ui": "node tests/ui-smoke.cjs",
     "test:staging": "node scripts/staging-check.cjs",
     "test:programs": "node scripts/verify-programs.cjs",
     "dev:local": "node scripts/local-server.cjs",
     "test:css": "node tests/css-smoke.cjs",
     "test:excel": "node tests/excel-quality.cjs",
-    "test:preview": "node tests/preview-ui.cjs",
-    "test:platform": "node tests/platform-ui.cjs"
+    "build:vercel": "node scripts/build-vercel.cjs"
   },
   "engines": {
     "node": ">=22"

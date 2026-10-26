@@ -160,25 +160,21 @@ function renderTaskAdmin() {
   state.workspace.tasks.filter(t=>t.topic_id===state.topic).forEach(t=>{
     const row=node('div',undefined,'admin-task'),button=node('button',t.active?'Жасыру':'Ашу','button secondary small');button.type='button';
     row.append(node('span',`${t.level}${t.position} · ${t.title}${t.active?'':' · жасырылған'}`),button);
-    button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/learning',{method:'POST',body:JSON.stringify({action:'set_active',task_id:t.id,active:!t.active})});await refreshWorkspace();}catch(e){el('adminStatus').textContent=e.message;button.disabled=false;}});target.append(row);
+    button.addEventListener('click',async()=>{button.disabled=true;try{await api('/api/learning',{method:'POST',body:JSON.stringify({action:'set_active',task_id:t.id,active:!t.active})});await refreshWorkspace();}catch(e){el('adminStatus').textContent=e.message;button.disabled=false;}});const edit=node('button','Өңдеу','button secondary small');edit.type='button';edit.addEventListener('click',()=>openTaskEditor(t.id));row.append(edit);target.append(row);
   });
 }
 function updateAccount() {
   const logged=Boolean(state.user),teacher=state.profile?.role==='teacher';
   el('accountName').textContent=logged?(state.profile?.full_name||state.user.email||'Жеке кабинет'):'Жеке дайындық алаңы';
-  el('openLogin').hidden=logged;el('logout').hidden=!logged;el('studentsTab').hidden=!teacher;
+  el('changePassword').hidden=!logged;el('downloadResults').hidden=!teacher;el('openLogin').hidden=logged;el('logout').hidden=!logged;el('studentsTab').hidden=!teacher;
   renderTopicProgress();
   if(!teacher&&state.view==='students')showView('theory');
 }
 function clearAccount() {
-  state.epoch++;state.user=null;state.profile=null;state.workspace=null;
+  if(typeof resetManagement==='function')resetManagement();state.epoch++;state.user=null;state.profile=null;state.workspace=null;
   el('loginPassword').value='';el('newPassword').value='';el('newFullName').value='';el('newLogin').value='';el('adminStatus').textContent='';
   el('studentsTable').replaceChildren();el('taskAdmin').replaceChildren();
   updateAccount();renderTasks();renderResults();notice('Жеке кабинеттен шықтыңыз. Теорияны оқуды жалғастыра аласыз.');
-}
-function makeLesson(event){
-  event.preventDefault();const target=el('lessonText');target.replaceChildren(node('h3',el('lessonTopic').value.trim()||'Информатика'));
-  [['Мақсат','Тақырыптың негізгі ұғымдарын түсіндіру және практикалық есептер шығару.'],['Сабақ барысы (45 минут)','Ұйымдастыру — 3 мин; түсіндіру — 12 мин; тәжірибе — 20 мин; бағалау — 7 мин; рефлексия — 3 мин.'],['Бағалау','Дұрыс жауап, есептеу жолы және түсіндіру.']].forEach(([title,text])=>{const p=node('p');p.append(node('b',title+': '),document.createTextNode(text));target.append(p);});
 }
 const measurementTheory=[...el('theory').childNodes].map(n=>n.cloneNode(true));
 function appendTheoryReview(id,target){
@@ -203,4 +199,4 @@ document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',
 el('topicToggle').addEventListener('click',()=>{const open=el('topicList').classList.toggle('open');el('topicToggle').setAttribute('aria-expanded',String(open));});
 el('openLogin').addEventListener('click',()=>el('loginDialog').showModal());el('closeLogin').addEventListener('click',()=>el('loginDialog').close());
 el('returnMeasurement').addEventListener('click',()=>selectedTopic('measurement'));
-el('refreshResults').addEventListener('click',refreshWorkspace);el('lessonForm').addEventListener('submit',makeLesson);
+el('refreshResults').addEventListener('click',refreshWorkspace);

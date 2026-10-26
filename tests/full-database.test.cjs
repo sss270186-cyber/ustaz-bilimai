@@ -6,7 +6,7 @@ async function actor(id,fn){await db.exec('set role authenticated');await db.que
 const grade=async(id,answer)=>(await db.query('select public.unt_submit_answer($1,$2) as data',[id,answer])).rows[0].data;
 before(async()=>{
  await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
- create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+ create schema auth;create table auth.users(id uuid primary key);create table auth.sessions(id uuid primary key,user_id uuid,created_at timestamptz);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth to authenticated,anon,service_role;
  create table public.profiles(id uuid primary key references auth.users(id),role text,username text,full_name text,class_name text,created_at timestamptz default now());`);
  for(let i=1;i<=20;i++){await db.query('insert into auth.users values($1)',[uid(i)]);await db.query('insert into public.profiles(id,role,username,full_name,class_name) values($1,$2,$3,$3,$4)',[uid(i),i===20?'teacher':'student','qa'+i,'11']);}
@@ -17,6 +17,7 @@ before(async()=>{
  await db.exec(fs.readFileSync('supabase/migrations/202610180004_full_curriculum.sql','utf8'));
  await db.query("insert into public.unt_attempts(student_id,task_id,submitted_answer,correct) values($1,'python-c02','1 8 3',true)",[uid(20)]);
  await db.exec(fs.readFileSync('supabase/migrations/202610180005_quality_review.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/202610260006_vercel_management.sql','utf8'));
 });
 after(async()=>await db.close());
 test('incremental curriculum migration preserves old users/results and adds 228 private keys',async()=>{

@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path');const {execFileSync}=require('node:child_process');
 function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).filter(e=>!['node_modules','.git','dist'].includes(e.name)).flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)]);}
-for(const f of [...files('api'),...files('assets'),...files('scripts'),...files('preview'),...files('platform'),'student.js'].filter(p=>/\.[cm]?js$/.test(p)))execFileSync(process.execPath,['--check',f]);
+for(const f of [...files('api'),...files('assets'),...files('scripts'),'student.js'].filter(p=>/\.[cm]?js$/.test(p)))execFileSync(process.execPath,['--check',f]);
 const html=fs.readFileSync('index.html','utf8'),ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 if(new Set(ids).size!==ids.length)throw Error('Duplicate HTML ids');
 if(/\son\w+\s*=|<script(?![^>]*src=)[^>]*>\s*\S/i.test(html))throw Error('Inline executable content violates CSP');

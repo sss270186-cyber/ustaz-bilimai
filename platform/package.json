@@ -1,6 +1,0 @@
-{
-  "name": "ustaz-bilimai-hosted-platform",
-  "private": true,
-  "scripts": {"db:generate": "drizzle-kit generate --config drizzle-source.config.ts"},
-  "devDependencies": {"drizzle-kit": "0.31.10", "drizzle-orm": "0.45.2"}
-}
